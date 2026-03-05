@@ -10,7 +10,7 @@ permissions:
 
 env:
   LAMBDA_URL: ${{secrets.CI_REVIEW_LAMBDA_URL}} 
-  MAX_FILES: 10
+  MAX_FILES: 50
 
 jobs:
   ai-review:
