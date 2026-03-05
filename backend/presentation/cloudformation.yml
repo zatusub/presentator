@@ -1,0 +1,176 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Presentation Timer App - DynamoDB + Lambda + Function URL (no API Gateway)
+
+Parameters:
+  ServiceName:
+    Type: String
+    Default: presen-timer
+  Stage:
+    Type: String
+    Default: dev
+
+Resources:
+  PresentationsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${ServiceName}-${Stage}-presentations"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: shareId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: shareId
+          KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  PresentationLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ServiceName}-${Stage}-presentation-lambda-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub "${ServiceName}-${Stage}-presentation-lambda-policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                Resource: !GetAtt PresentationsTable.Arn
+
+  PresentationStoreFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ServiceName}-${Stage}-presentation-store"
+      Runtime: nodejs24.x
+      Handler: index.handler
+      Role: !GetAtt PresentationLambdaRole.Arn
+      Timeout: 15
+      MemorySize: 256
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref PresentationsTable
+      Code:
+        ZipFile: |
+          const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+          const { DynamoDBDocumentClient, GetCommand, PutCommand } = require("@aws-sdk/lib-dynamodb");
+          const { randomUUID } = require("crypto");
+
+          const client = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+
+          const json = (statusCode, bodyObj) => ({
+            statusCode,
+            headers: {
+              "content-type": "application/json",
+              "access-control-allow-origin": "*",
+              "access-control-allow-headers": "*",
+              "access-control-allow-methods": "GET,POST"
+            },
+            body: JSON.stringify(bodyObj),
+          });
+
+          exports.handler = async (event) => {
+            // Function URL payload is string JSON in event.body (for POST)
+            if (event?.requestContext?.http?.method === "OPTIONS") {
+              return { statusCode: 204, headers: {
+                "access-control-allow-origin": "*",
+                "access-control-allow-headers": "*",
+                "access-control-allow-methods": "GET,POST,OPTIONS"
+              }};
+            }
+
+            let payload = {};
+            try {
+              if (event?.body) payload = JSON.parse(event.body);
+              else payload = event || {};
+            } catch {
+              return json(400, { ok: false, error: "invalid_json" });
+            }
+
+            const table = process.env.TABLE_NAME;
+            const action = payload?.action;
+
+            if (action === "put") {
+              const shareId = randomUUID();
+              const now = new Date().toISOString();
+
+              const item = {
+                shareId,
+                createdAt: now,
+                updatedAt: now,
+                presentation: payload.presentation
+              };
+
+              await client.send(new PutCommand({
+                TableName: table,
+                Item: item
+              }));
+
+              return json(200, { ok: true, shareId });
+            }
+
+            if (action === "get") {
+              const shareId = payload?.shareId;
+              if (!shareId) return json(400, { ok: false, error: "shareId_is_required" });
+
+              const res = await client.send(new GetCommand({
+                TableName: table,
+                Key: { shareId }
+              }));
+
+              if (!res.Item) return json(404, { ok: false, error: "not_found" });
+              return json(200, { ok: true, item: res.Item });
+            }
+
+            return json(400, { ok: false, error: "unknown_action" });
+          };
+
+  # Function URL (public)
+  PresentationStoreFunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !GetAtt PresentationStoreFunction.Arn
+      AuthType: NONE
+      Cors:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - GET
+          - POST
+        AllowHeaders:
+          - "*"
+
+  # Allow public invoke for Function URL when AuthType=NONE
+  PresentationStoreFunctionUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref PresentationStoreFunction
+      Action: lambda:InvokeFunctionUrl
+      Principal: "*"
+      FunctionUrlAuthType: NONE
+
+Outputs:
+  PresentationsTableName:
+    Value: !Ref PresentationsTable
+
+  PresentationStoreFunctionName:
+    Value: !Ref PresentationStoreFunction
+
+  PresentationStoreFunctionUrl:
+    Value: !GetAtt PresentationStoreFunctionUrl.FunctionUrl

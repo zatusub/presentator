@@ -1,0 +1,53 @@
+<mxfile host="app.diagrams.net" modified="2026-03-05T11:02:00.000Z" agent="notion-ai" version="24.7.8">
+  <diagram id="arch1" name="Architecture">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Client -->
+        <mxCell id="client" value="Client (Web)&#10;PC / Smartphone&#10;&#10;POST Function URL&#10;{ action: put/get }" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="220" width="210" height="140" as="geometry"/>
+        </mxCell>
+
+        <!-- Function URL -->
+        <mxCell id="fnurl" value="Lambda Function URL&#10;(Public HTTPS endpoint)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="320" y="250" width="220" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- Lambda -->
+        <mxCell id="lambda" value="AWS Lambda (Node.js 24.x)&#10;PresentationStoreFunction&#10;&#10;put: generate UUID + save JSON&#10;get: load by shareId" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="600" y="215" width="260" height="150" as="geometry"/>
+        </mxCell>
+
+        <!-- DynamoDB -->
+        <mxCell id="ddb" value="Amazon DynamoDB&#10;Table: presentations&#10;PK: shareId (UUID)&#10;Attr: presentation (JSON blob)&#10;No TTL (infinite)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="920" y="235" width="220" height="120" as="geometry"/>
+        </mxCell>
+
+        <!-- CloudWatch Logs -->
+        <mxCell id="cw" value="CloudWatch Logs&#10;(Lambda logs)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eeeeee;strokeColor=#666666;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="600" y="410" width="260" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e1" value="HTTPS (POST)" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="client" target="fnurl">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e2" value="Invoke" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="fnurl" target="lambda">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e3" value="GetItem / PutItem" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="lambda" target="ddb">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e4" value="Write logs" style="endArrow=block;html=1;strokeWidth=2;dashed=1;" edge="1" parent="1" source="lambda" target="cw">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
