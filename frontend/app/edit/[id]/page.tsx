@@ -89,6 +89,10 @@ export default function EditPage({
                 }
             }
         } catch (err) {
+<<<<<<< HEAD
+=======
+            console.error("Error in handleSave:", err);
+>>>>>>> dcd017d (connection API)
             showToast("ネットワークエラーが発生しました");
         } finally {
             setIsSaving(false);
@@ -97,6 +101,10 @@ export default function EditPage({
 
     const handleCopyId = useCallback(async () => {
         const sid = presentation?.shareId;
+<<<<<<< HEAD
+=======
+        console.log("Attempting to copy shareId:", sid);
+>>>>>>> dcd017d (connection API)
         if (!sid) {
             showToast("まず保存してください");
             return;
@@ -105,6 +113,10 @@ export default function EditPage({
             await navigator.clipboard.writeText(sid);
             showToast("コピーしました");
         } catch (err) {
+<<<<<<< HEAD
+=======
+            console.error("Copy failed:", err);
+>>>>>>> dcd017d (connection API)
             showToast("コピーに失敗しました");
         }
     }, [presentation?.shareId]);

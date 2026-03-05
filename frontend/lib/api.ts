@@ -85,7 +85,7 @@ export async function savePresentationToAPI(
 
         if (!res.ok) {
             const body = await res.text().catch(() => "no-body");
-            console.error(`API Error ${res.status}`); // Hide body/details from general console unless explicitly looking at errors
+            console.error(`API Error ${res.status}:`, body);
             if (res.status === 403) return { shareId: null, error: "auth" };
             if (res.status === 404) return { shareId: null, error: "not_found" };
             return { shareId: null, error: "other" };
