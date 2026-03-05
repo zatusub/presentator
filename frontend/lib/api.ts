@@ -75,7 +75,6 @@ export async function savePresentationToAPI(
     };
 
     try {
-        console.log("Saving to API:", FUNCTION_URL);
         const res = await fetch(FUNCTION_URL, {
             method: "POST",
             headers: {
@@ -86,17 +85,15 @@ export async function savePresentationToAPI(
 
         if (!res.ok) {
             const body = await res.text().catch(() => "no-body");
-            console.error(`API Error ${res.status}:`, body);
+            console.error(`API Error ${res.status}`); // Hide body/details from general console unless explicitly looking at errors
             if (res.status === 403) return { shareId: null, error: "auth" };
             if (res.status === 404) return { shareId: null, error: "not_found" };
             return { shareId: null, error: "other" };
         }
 
         const data: ApiPutResponse = await res.json();
-        console.log("API Response Success:", data);
         return { shareId: data.shareId ?? null };
     } catch (err) {
-        console.error("Fetch Exception:", err);
         return { shareId: null, error: "network" };
     }
 }

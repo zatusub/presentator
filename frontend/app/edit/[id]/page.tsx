@@ -89,7 +89,6 @@ export default function EditPage({
                 }
             }
         } catch (err) {
-            console.error("Error in handleSave:", err);
             showToast("ネットワークエラーが発生しました");
         } finally {
             setIsSaving(false);
@@ -98,7 +97,6 @@ export default function EditPage({
 
     const handleCopyId = useCallback(async () => {
         const sid = presentation?.shareId;
-        console.log("Attempting to copy shareId:", sid);
         if (!sid) {
             showToast("まず保存してください");
             return;
@@ -107,7 +105,6 @@ export default function EditPage({
             await navigator.clipboard.writeText(sid);
             showToast("コピーしました");
         } catch (err) {
-            console.error("Copy failed:", err);
             showToast("コピーに失敗しました");
         }
     }, [presentation?.shareId]);
