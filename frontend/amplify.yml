@@ -3,18 +3,21 @@ frontend:
   phases:
     preBuild:
       commands:
+        - if [ ! -f package-lock.json ]; then echo "ERROR: package-lock.json not found"; exit 1; fi
         - npm ci
     build:
       commands:
         - echo "Setting up environment variables..."
-        - env | grep '^NEXT_PUBLIC_' > .env.production || true
+        - env | grep '^NEXT_PUBLIC_' > .env.production 2>/dev/null || echo "No NEXT_PUBLIC_ variables found"
         - if [ -z "$API_URL" ]; then echo "ERROR: API_URL not set"; exit 1; fi
         - echo "API_URL=$API_URL" >> .env.production
         - npm run build
+        - if [ ! -d .next ]; then echo "ERROR: Build failed"; exit 1; fi
   artifacts:
-    baseDirectory: frontend/.next
+    baseDirectory: .next
     files:
       - '**/*'
   cache:
     paths:
-      - frontend/node_modules/**/*
+      - node_modules/**/*
+      - .next/**/*
