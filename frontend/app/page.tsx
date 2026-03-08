@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { usePresentationStore } from "@/stores/presentationStore";
 import { loadPresentationFromAPI } from "@/lib/api";
 import { formatMmss, durationToMs } from "@/lib/formatTime";
 import { showToast } from "@/components/Toast";
 import type { Presentation } from "@/lib/types";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, type Variants } from "framer-motion";
 import {
   Plus,
   Search,
@@ -33,6 +33,13 @@ export default function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Cleanup timeout for delete confirmation via useEffect
+  useEffect(() => {
+    if (!deleteTarget) return;
+    const timer = setTimeout(() => setDeleteTarget(null), 3000);
+    return () => clearTimeout(timer);
+  }, [deleteTarget]);
+
   const handleCreateNew = useCallback(() => {
     const p = store.create();
     router.push(`/edit/${p.id}`);
@@ -57,14 +64,13 @@ export default function HomePage() {
   }, [shareIdInput, store, router]);
 
   const handleDelete = useCallback(
-    (e: React.MouseEvent, id: string) => {
+    (e: React.MouseEvent<HTMLButtonElement>, id: string) => {
       e.stopPropagation();
       if (deleteTarget === id) {
         store.remove(id);
         setDeleteTarget(null);
       } else {
         setDeleteTarget(id);
-        setTimeout(() => setDeleteTarget(null), 3000);
       }
     },
     [deleteTarget, store]
@@ -83,13 +89,14 @@ export default function HomePage() {
   const formatDate = (iso: string) => {
     try {
       const d = new Date(iso);
-      return `${d.getMonth() + 1}/${d.getDate()}`;
+      // Restore time information (HH:MM) for better identification
+      return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
     } catch {
       return "";
     }
   };
 
-  const containerVariants: any = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
@@ -99,7 +106,7 @@ export default function HomePage() {
     }
   };
 
-  const itemVariants: any = {
+  const itemVariants: Variants = {
     hidden: { y: 20, opacity: 0 },
     visible: {
       y: 0,
@@ -150,6 +157,7 @@ export default function HomePage() {
             variants={itemVariants}
             whileHover={{ scale: 1.02, y: -2 }}
             whileTap={{ scale: 0.98 }}
+            type="button"
             onClick={() => showToast("現在、ログイン機能は準備中です。")}
             className="md:col-span-4 group bg-white/[0.03] backdrop-blur-2xl border border-white/[0.08] hover:border-white/20 rounded-[2rem] p-8 flex flex-col items-center justify-center text-center transition-all overflow-hidden relative shadow-2xl shadow-black/5"
           >
@@ -183,6 +191,7 @@ export default function HomePage() {
                 />
               </div>
               <button
+                type="button"
                 onClick={handleLoadById}
                 disabled={loading || !shareIdInput.trim()}
                 className="w-full bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 disabled:opacity-30 disabled:hover:bg-blue-600/10 disabled:cursor-not-allowed font-semibold py-4 rounded-2xl border border-blue-500/20 transition-all flex items-center justify-center gap-2"
@@ -245,7 +254,7 @@ export default function HomePage() {
             <AnimatePresence mode="popLayout">
               {/* "Create New" First Item Card */}
               {store.hydrated && (
-                <motion.div
+                <motion.button
                   key="create-new-card"
                   layout
                   variants={itemVariants}
@@ -253,6 +262,7 @@ export default function HomePage() {
                   animate="visible"
                   whileHover={{ y: -4 }}
                   onClick={handleCreateNew}
+                  type="button"
                   className="group relative bg-blue-600/5 hover:bg-blue-600/10 backdrop-blur-xl border border-dashed border-blue-500/30 hover:border-blue-500/60 rounded-[1.5rem] p-6 cursor-pointer transition-all duration-300 flex flex-col items-center justify-center text-center min-h-[160px]"
                 >
                   <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-500 shadow-lg shadow-blue-600/20">
@@ -264,7 +274,7 @@ export default function HomePage() {
                   <p className="text-xs text-blue-500/60 mt-1">
                     新しい発表を開始する
                   </p>
-                </motion.div>
+                </motion.button>
               )}
 
               {store.hydrated && store.presentations.map((p) => (
@@ -277,6 +287,14 @@ export default function HomePage() {
                   exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
                   whileHover={{ y: -4 }}
                   onClick={() => router.push(`/edit/${p.id}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      router.push(`/edit/${p.id}`);
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`${p.title || "無題の発表"} を編集`}
                   className="group relative bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/[0.08] hover:border-blue-500/30 rounded-[1.5rem] p-6 cursor-pointer transition-all duration-300 flex flex-col justify-between overflow-hidden"
                 >
                   <div className="flex justify-between items-start mb-4">
@@ -284,8 +302,11 @@ export default function HomePage() {
                       {p.title || "無題の発表"}
                     </div>
                     <button
+                      type="button"
                       onClick={(e) => handleDelete(e, p.id)}
-                      className={`p-2 rounded-xl transition-all ${deleteTarget === p.id
+                      aria-label={`${p.title || "無題の発表"} を削除`}
+                      title="削除"
+                      className={`p-2 rounded-xl transition-all relative z-20 ${deleteTarget === p.id
                         ? "bg-red-500 text-white"
                         : "text-zinc-600 hover:text-red-400 hover:bg-red-500/10"
                         }`}
