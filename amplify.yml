@@ -5,18 +5,16 @@ applications:
       phases:
         preBuild:
           commands:
-            - if [ ! -f package-lock.json ]; then echo "ERROR: package-lock.json not found"; exit 1; fi
-            - npm ci
+            - "if [ ! -f package-lock.json ]; then echo \"ERROR: package-lock.json not found\"; exit 1; fi"
+            - "npm ci"
         build:
           commands:
-            - echo "Setting up environment variables..."
-            # NEXT_PUBLIC_ で始まる変数と API_URL を .env.production に書き出す
-            - env | grep -E '^(NEXT_PUBLIC_|API_URL)' > .env.production 2>/dev/null || echo "No matching variables found"
-            - if [ -z "$API_URL" ]; then echo "ERROR: API_URL not set in Amplify console"; exit 1; fi
-            # API_URL を明示的に追記（grepで漏れた場合のため）
-            - grep -q "API_URL=" .env.production || echo "API_URL=$API_URL" >> .env.production
-            - npm run build
-            - if [ ! -d .next ]; then echo "ERROR: Build failed ( .next directory not found )"; exit 1; fi
+            - "echo \"Setting up environment variables...\""
+            - "env | grep -E '^(NEXT_PUBLIC_|API_URL)' > .env.production 2>/dev/null || echo \"No matching variables found\""
+            - "if [ -z \"$API_URL\" ]; then echo \"ERROR: API_URL not set in Amplify console\"; exit 1; fi"
+            - "grep -q \"API_URL=\" .env.production || echo \"API_URL=$API_URL\" >> .env.production"
+            - "npm run build"
+            - "if [ ! -d .next ]; then echo \"ERROR: Build failed ( .next directory not found )\"; exit 1; fi"
       artifacts:
         baseDirectory: .next
         files:
