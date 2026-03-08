@@ -1,0 +1,24 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - cd frontend
+        - npm ci
+    build:
+      commands:
+        - cd frontend
+        # Amplify environment variables are accessible in the build shell.
+        # This line captures them and creates a .env.production file for Next.js.
+        # It's specifically configured to capture API_URL and any NEXT_PUBLIC_ variables.
+        - echo "Creating .env.production from Amplify settings..."
+        - env | grep -E '^(NEXT_PUBLIC_|API_URL|DATABASE_URL)' >> .env.production || true
+        - npm run build
+  artifacts:
+    baseDirectory: frontend/.next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - frontend/node_modules/**/*
+      - frontend/.next/cache/**/*
