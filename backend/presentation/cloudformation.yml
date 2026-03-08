@@ -74,37 +74,14 @@ Resources:
 
           const client = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
-          // CORS対応のレスポンス関数
+          // Simple JSON response (CORS is NOT needed since calling from Server Actions)
           const json = (statusCode, bodyObj) => ({
             statusCode,
-            headers: {
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*", // 本番環境では特定のドメインに制限
-              "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-              "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
-              "Access-Control-Max-Age": "86400" // プリフライトリクエストのキャッシュ時間
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(bodyObj),
           });
 
-          // OPTIONSリクエスト用のレスポンス
-          const corsResponse = () => ({
-            statusCode: 200,
-            headers: {
-              "Access-Control-Allow-Origin": "*",
-              "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-              "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
-              "Access-Control-Max-Age": "86400"
-            },
-            body: ""
-          });
-
           exports.handler = async (event) => {
-            // CORS Preflight リクエストの処理
-            if (event?.requestContext?.http?.method === "OPTIONS") {
-              return corsResponse();
-            }
-
             let payload = {};
             try {
               if (event?.body) payload = JSON.parse(event.body);
@@ -118,12 +95,13 @@ Resources:
 
             try {
               if (action === "put") {
-                const shareId = randomUUID();
+                // Reuse shareId if present to support updates
+                const shareId = payload.presentation?.shareId || randomUUID();
                 const now = new Date().toISOString();
 
                 const item = {
                   shareId,
-                  createdAt: now,
+                  createdAt: payload.presentation?.shareId ? undefined : now,
                   updatedAt: now,
                   presentation: payload.presentation
                 };
@@ -156,28 +134,14 @@ Resources:
             }
           };
 
-
   # Function URL (public)
   PresentationStoreFunctionUrl:
     Type: AWS::Lambda::Url
     Properties:
       TargetFunctionArn: !GetAtt PresentationStoreFunction.Arn
       AuthType: NONE
-      Cors:
-        AllowOrigins:
-          - "*"
-        AllowMethods:
-          - GET
-          - POST
-          - PUT
-          - DELETE
-        AllowHeaders:
-          - "content-type"
-          - "x-amz-date"
-          - "x-api-key"
-          - "authorization"
-          - "x-amz-security-token"
-        MaxAge: 3600
+      # CORS settings are removed because Server Actions handle the request.
+      # This completely bypasses browser CORS preflight issues.
 
   # Allow public invoke for Function URL when AuthType=NONE
   PresentationStoreFunctionUrlPermission:
